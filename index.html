@@ -84,20 +84,27 @@
 
     .btn-sub {
       flex: 1;
-      padding: 8px;
+      padding: 10px 8px;
       font-size: 0.85rem;
       background-color: #edf2f7;
       color: #4a5568;
       border: 1px solid #cbd5e0;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
     }
 
+    /* 復習モードON時の強調スタイル */
     .btn-sub.active {
-      background-color: #feebc8;
-      color: #c05621;
-      border-color: #fbd38d;
+      background-color: #dd6b20;
+      color: #ffffff;
+      border-color: #c05621;
       font-weight: bold;
+      box-shadow: 0 2px 6px rgba(221, 107, 32, 0.4);
     }
 
     /* プログレスバー */
@@ -276,7 +283,7 @@
     }
 
     /* ==========================================
-       アコーディオンモーダル（複数選択・件数明示）
+       アコーディオンモーダル
     ========================================== */
     .modal-overlay {
       display: none;
@@ -484,7 +491,7 @@
 <body>
 
   <header>
-    <h1>世界史 一問一答 ver.4 〜魂を燃やせ🔥🔥〜</h1>
+    <h1>世界史 一問一答 ver.5 〜魂を燃やせ🔥🔥〜</h1>
 
     <!-- 時代・地域フィルター -->
     <div class="filter-group">
@@ -492,7 +499,6 @@
         <option value="ALL">全ての時代</option>
       </select>
 
-      <!-- 折りたたみ・複数選択モーダル起動ボタン -->
       <button class="custom-select-btn" id="regionSelectBtn" onclick="openRegionModal()">
         全ての地域
       </button>
@@ -502,7 +508,10 @@
   <!-- サブコントロールボタン -->
   <div class="sub-controls">
     <button class="btn-sub" onclick="shuffleCurrentQuiz()">🔀 シャッフル</button>
-    <button class="btn-sub" id="reviewBtn" onclick="toggleReviewMode()">⚠️ 間違えた問題のみ (<span id="reviewCount">0</span>)</button>
+    <!-- ON/OFF状態が明示される復習モードボタン -->
+    <button class="btn-sub" id="reviewBtn" onclick="toggleReviewMode()">
+      <span id="reviewStatusLabel">⚠️ 復習 [OFF]</span> (<span id="reviewCount">0</span>)
+    </button>
   </div>
 
   <!-- プログレスバー -->
@@ -559,7 +568,7 @@
         <button class="modal-close-btn" onclick="closeRegionModal()">✕</button>
       </div>
       <div class="modal-body" id="modalAccordionList">
-        <!-- JSで動的にアコーディオン、チェックボックス、問題数を生成 -->
+        <!-- JSで動的に構築 -->
       </div>
       <div class="modal-footer">
         <div class="modal-summary-bar">
@@ -806,10 +815,8 @@
     let isReviewMode = false;
     let isFinished = false;
 
-    // 選択された地域の集合 (空の場合は「全ての地域」として扱う)
     let selectedRegions = new Set();
 
-    // マッチング判定
     function checkRegionMatch(itemRegions, selectedSet) {
       if (selectedSet.size === 0) return true;
       return itemRegions.some(itemRegion => selectedSet.has(itemRegion));
@@ -820,7 +827,6 @@
       return itemEras.some(e => e.trim() === selectedEra.trim());
     }
 
-    // 時代ドロップダウンの動的更新
     function updateEraDropdown() {
       const eraSelect = document.getElementById('eraSelect');
       const currentSelectedEra = eraSelect.value;
@@ -852,7 +858,6 @@
       }
     }
 
-    // モーダル底部の「選択中問題数」を動的更新する処理
     function updateTotalSelectedCount() {
       const selectedEra = document.getElementById('eraSelect').value;
 
@@ -861,8 +866,6 @@
         : quizData;
 
       baseData = baseData.filter(q => checkEraMatch(q.eras, selectedEra));
-
-      // 現在選択中の地域条件でフィルタリングされた件数を集計
       const matchedCount = baseData.filter(q => checkRegionMatch(q.regions, selectedRegions)).length;
 
       const countEl = document.getElementById('totalSelectedCount');
@@ -873,7 +876,6 @@
       }
     }
 
-    // アコーディオンモーダルの構築
     function buildAccordionModal() {
       const modalBody = document.getElementById('modalAccordionList');
       modalBody.innerHTML = '';
@@ -886,7 +888,6 @@
 
       baseData = baseData.filter(q => checkEraMatch(q.eras, selectedEra));
 
-      // 各地域ごとの問題数をカウント
       const regionCountMap = new Map();
       baseData.forEach(q => {
         q.regions.forEach(r => {
@@ -897,7 +898,6 @@
         });
       });
 
-      // 全データから存在するグループ構造を一覧化
       const groupMap = new Map();
       quizData.forEach(q => {
         q.regions.forEach(rawTag => {
@@ -981,10 +981,9 @@
         modalBody.appendChild(itemDiv);
       });
 
-      updateTotalSelectedCount(); // フッターの合計数を更新
+      updateTotalSelectedCount();
     }
 
-    // チェックボックス変更イベント
     function onCheckboxChange(checkbox) {
       if (checkbox.checked) {
         selectedRegions.add(checkbox.value);
@@ -994,7 +993,6 @@
       updateTotalSelectedCount();
     }
 
-    // グループ一括選択・解除
     function toggleGroupSelection(childrenArray) {
       const allChecked = childrenArray.every(val => selectedRegions.has(val));
 
@@ -1006,10 +1004,9 @@
         }
       });
 
-      buildAccordionModal(); // UIおよび合計数の再描画
+      buildAccordionModal();
     }
 
-    // 全解除処理
     function resetRegionSelection() {
       selectedRegions.clear();
       buildAccordionModal();
@@ -1026,7 +1023,6 @@
       }
     }
 
-    // モーダルで「決定して出題する」を押した時
     function applyRegionSelection() {
       closeRegionModal();
       updateRegionButtonText();
@@ -1034,7 +1030,6 @@
       applyFilters();
     }
 
-    // ボタン上の選択状態表示を更新
     function updateRegionButtonText() {
       const btn = document.getElementById('regionSelectBtn');
       if (selectedRegions.size === 0) {
@@ -1178,14 +1173,18 @@
       renderCard();
     }
 
+    // 復習モードの切替処理（ボタンの見た目とラベルを更新）
     function toggleReviewMode() {
       isReviewMode = !isReviewMode;
       const reviewBtn = document.getElementById('reviewBtn');
+      const label = document.getElementById('reviewStatusLabel');
 
       if (isReviewMode) {
         reviewBtn.classList.add('active');
+        label.innerText = '⚠️ 復習 [ON]';
       } else {
         reviewBtn.classList.remove('active');
+        label.innerText = '⚠️ 復習 [OFF]';
       }
 
       updateEraDropdown();
