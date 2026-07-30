@@ -1020,10 +1020,7 @@
             const [parent, child] = trimmedTag.split(":").map(s => s.trim());
             if (!groupMap.has(parent)) groupMap.set(parent, new Set());
             groupMap.get(parent).add(child);
-          } else {
-            if (!groupMap.has("その他")) groupMap.set("その他", new Set());
-            groupMap.get("その他").add(trimmedTag);
-          }
+          } 
         });
       });
 
