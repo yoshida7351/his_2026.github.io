@@ -598,7 +598,7 @@
 <body>
 
   <header>
-    <h1>世界史 一問一答 ver.11.1 </br>〜たくさん勉強しよう……な！〜</h1>
+    <h1>世界史 一問一答 ver.11.2 </br>〜たっくさん勉強しよう……な！〜</h1>
   </header>
 
   <!-- メイン画面のフリーワード文章検索バー -->
@@ -1321,42 +1321,42 @@
     }
 
     function loadProgress() {
-      try {
-        const saved = localStorage.getItem('worldHistoryQuizProgress');
-        if (!saved) return false;
+          try {
+            const saved = localStorage.getItem('worldHistoryQuizProgress');
+            if (!saved) return false;
 
-        const state = JSON.parse(saved);
-        if (state && typeof state.currentIndex === 'number') {
-          // 復習リストの復元
-          if (Array.isArray(state.wrongIds)) {
-            wrongSet = new Set(state.wrongIds);
-          }
-          // モードの復元
-          isReviewMode = !!state.isReviewMode;
-          const reviewBtn = document.getElementById('reviewBtn');
-          const label = document.getElementById('reviewStatusLabel');
-          if (isReviewMode) {
-            reviewBtn.classList.add('active');
-            label.innerText = '⚠️ 復習 [ON]';
-          } else {
-            reviewBtn.classList.remove('active');
-            label.innerText = '⚠️ 復習 [OFF]';
-          }
+            const state = JSON.parse(saved);
+            if (state && typeof state.currentIndex === 'number') {
+              if (Array.isArray(state.wrongIds)) {
+                wrongSet = new Set(state.wrongIds);
+              }
+              isReviewMode = !!state.isReviewMode;
+              const reviewBtn = document.getElementById('reviewBtn');
+              const label = document.getElementById('reviewStatusLabel');
+              if (isReviewMode) {
+                reviewBtn.classList.add('active');
+                label.innerText = '⚠️ 復習 [ON]';
+              } else {
+                reviewBtn.classList.remove('active');
+                label.innerText = '⚠️ 復習 [OFF]';
+              }
 
-          updateEraDropdown();
-          applyFilters();
+              updateEraDropdown();
 
-          // 保存されたインデックスが現在のリスト範囲内であればセット
-          if (state.currentIndex < currentList.length && state.currentIndex >= 0) {
-            currentIndex = state.currentIndex;
-            return true;
+              // ★ インデックスをリセットせずにフィルタだけ適用する
+              applyFilters(false);
+
+              if (state.currentIndex < currentList.length && state.currentIndex >= 0) {
+                currentIndex = state.currentIndex;
+                renderCard(); // 再描画
+                return true;
+              }
+            }
+          } catch (e) {
+            console.warn("ローカルストレージからの読み込みに失敗しました", e);
           }
+          return false;
         }
-      } catch (e) {
-        console.warn("ローカルストレージからの読み込みに失敗しました", e);
-      }
-      return false;
-    }
 
     // --- タグをグループに割り振る処理（文化史は★文化史のみに所属させる） ---
     function parseTagToGroups(rawTag) {
@@ -1760,27 +1760,35 @@
     }
 
     window.onload = function() {
-      updateEraDropdown();
-      applyFilters();
+          // 1. まずドロップダウンなどの初期選択肢を生成
+          updateEraDropdown();
 
-      // 保存されたデータがあるか確認
-      const saved = localStorage.getItem('worldHistoryQuizProgress');
-      if (saved) {
-        try {
-          const state = JSON.parse(saved);
-          if (state && typeof state.currentIndex === 'number' && state.currentIndex > 0) {
-            const resume = confirm(`前回の学習データが見つかりました。\n${state.currentIndex + 1}問目から再開しますか？`);
-            if (resume) {
-              loadProgress();
-            } else {
-              localStorage.removeItem('worldHistoryQuizProgress');
+          // 2. 保存されたデータがあるかチェック
+          const saved = localStorage.getItem('worldHistoryQuizProgress');
+          let isResumed = false;
+
+          if (saved) {
+            try {
+              const state = JSON.parse(saved);
+              // 2問目以降に進んでいた場合のみ再開確認を表示
+              if (state && typeof state.currentIndex === 'number' && state.currentIndex > 0) {
+                const resume = confirm(`前回の学習データが見つかりました。\n${state.currentIndex + 1}問目から再開しますか？`);
+                if (resume) {
+                  isResumed = loadProgress(); // 復元成功なら true
+                } else {
+                  localStorage.removeItem('worldHistoryQuizProgress');
+                }
+              }
+            } catch (e) {
+              console.warn(e);
             }
           }
-        } catch (e) {
-          console.warn(e);
-        }
-      }
-    };
+
+          // 3. 再開しなかった（新規スタートの）場合のみ、フィルタを初期適用して1問目にセット
+          if (!isResumed) {
+            applyFilters();
+          }
+        };
 
     function renderCard() {
       const quizContent = document.getElementById('quizContent');
@@ -1854,51 +1862,55 @@
       saveProgress();
     }
 
-    function applyFilters() {
-      const selectedEra = document.getElementById('eraSelect').value;
-      const keywordInput = document.getElementById('mainKeywordInput');
-      const keyword = keywordInput ? normalizeText(keywordInput.value.trim()) : '';
+    function applyFilters(resetIndex = true) {
+          const selectedEra = document.getElementById('eraSelect').value;
+          const keywordInput = document.getElementById('mainKeywordInput');
+          const keyword = keywordInput ? normalizeText(keywordInput.value.trim()) : '';
 
-      let baseData = isReviewMode
-        ? quizData.filter(q => wrongSet.has(q.id))
-        : quizData;
+          let baseData = isReviewMode
+            ? quizData.filter(q => wrongSet.has(q.id))
+            : quizData;
 
-      currentList = baseData.filter(q => {
-        const matchEra = checkEraMatch(q.eras, selectedEra);
-        const matchRegion = checkRegionMatch(q.regions, selectedRegions);
+          currentList = baseData.filter(q => {
+            const matchEra = checkEraMatch(q.eras, selectedEra);
+            const matchRegion = checkRegionMatch(q.regions, selectedRegions);
 
-        let matchKeyword = true;
-        if (keyword) {
-          const qText = normalizeText(q.question);
-          const aText = normalizeText(q.answer);
-          const expText = normalizeText(q.explanation || "");
-          const eraText = normalizeText(q.eras.join(" "));
+            let matchKeyword = true;
+            if (keyword) {
+              const qText = normalizeText(q.question);
+              const aText = normalizeText(q.answer);
+              const expText = normalizeText(q.explanation || "");
+              const eraText = normalizeText(q.eras.join(" "));
 
-          const regionTexts = [];
-          q.regions.forEach(r => {
-            regionTexts.push(r);
-            const groups = parseTagToGroups(r);
-            groups.forEach(g => {
-              regionTexts.push(g.parent);
-              regionTexts.push(g.child);
-            });
+              const regionTexts = [];
+              q.regions.forEach(r => {
+                regionTexts.push(r);
+                const groups = parseTagToGroups(r);
+                groups.forEach(g => {
+                  regionTexts.push(g.parent);
+                  regionTexts.push(g.child);
+                });
+              });
+              const regionText = normalizeText(regionTexts.join(" "));
+
+              matchKeyword = qText.includes(keyword) ||
+                             aText.includes(keyword) ||
+                             expText.includes(keyword) ||
+                             eraText.includes(keyword) ||
+                             regionText.includes(keyword);
+            }
+
+            return matchEra && matchRegion && matchKeyword;
           });
-          const regionText = normalizeText(regionTexts.join(" "));
 
-          matchKeyword = qText.includes(keyword) ||
-                         aText.includes(keyword) ||
-                         expText.includes(keyword) ||
-                         eraText.includes(keyword) ||
-                         regionText.includes(keyword);
+          // 明示的にリセット指定された場合（検索条件変更時など）のみ0に戻す
+          if (resetIndex) {
+            currentIndex = 0;
+          }
+
+          isFinished = false;
+          renderCard();
         }
-
-        return matchEra && matchRegion && matchKeyword;
-      });
-
-      currentIndex = 0;
-      isFinished = false;
-      renderCard();
-    }
 
     function toggleAnswer() {
       if (currentList.length === 0 || isFinished) return;
